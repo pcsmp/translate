@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cipher</title>
+<style>
+:root{
+  --bg:#070707;
+  --surface:rgba(255,255,255,.035);
+  --surface-2:rgba(255,255,255,.06);
+  --border:rgba(255,255,255,.08);
+  --border-2:rgba(255,255,255,.16);
+  --text:#f3f3f3;
+  --text-2:#b5b5b5;
+  --muted:#777;
+  --field:rgba(0,0,0,.4);
+  --ease:cubic-bezier(.22,.8,.24,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* background */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.bg i{position:absolute;width:70vmax;height:70vmax;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.07),transparent 60%);
+  animation:drift 30s ease-in-out infinite alternate}
+.bg i:nth-child(2){left:50%;top:30%;width:55vmax;height:55vmax;animation-duration:38s;animation-delay:-10s;
+  background:radial-gradient(circle,rgba(255,255,255,.045),transparent 60%)}
+.bg i:nth-child(3){left:-20%;top:50%;width:50vmax;height:50vmax;animation-duration:34s;animation-delay:-18s}
+@keyframes drift{from{transform:translate(0,0)}to{transform:translate(6vw,-4vh)}}
+
+.wrap{max-width:980px;margin:0 auto;padding:24px 20px 64px}
+
+/* glass */
+.glass{
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid var(--border);
+  backdrop-filter:blur(24px) saturate(0);-webkit-backdrop-filter:blur(24px) saturate(0);
+  box-shadow:0 30px 70px -30px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.06);
+  border-radius:20px;
+}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;animation:down .6s var(--ease) both}
+@keyframes down{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;font-size:12px}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.5);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.45)}70%{box-shadow:0 0 0 10px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+.seg{display:flex;gap:2px;padding:4px;border-radius:999px}
+.seg button{position:relative;background:none;border:0;cursor:pointer;color:var(--muted);padding:8px 16px;border-radius:999px;font-size:13px;font-weight:500;transition:color .3s}
+.seg button:hover{color:var(--text)}
+.seg button.on{color:#fff}
+.seg .pill{position:absolute;inset:0;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);transition:transform .45s var(--ease),width .45s var(--ease);z-index:0}
+.seg button span{position:relative;z-index:1}
+
+/* views */
+.view{display:none}
+.view.on{display:block;animation:rise .5s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.intro{margin:42px 0 24px}
+.intro h1{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:0 0 8px}
+.intro p{margin:0;color:var(--muted);max-width:640px}
+
+.panel{padding:20px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.pair{grid-template-columns:1fr}}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.head b{font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted)}
+
+textarea,.out{
+  display:block;width:100%;min-height:210px;padding:16px;border-radius:14px;
+  border:1px solid var(--border);background:var(--field);
+  font:14.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text);
+  transition:border-color .3s,box-shadow .3s;
+}
+textarea{resize:vertical;outline:none}
+textarea:focus{border-color:var(--border-2);box-shadow:0 0 0 4px rgba(255,255,255,.035)}
+.out{white-space:pre-wrap;word-break:break-word;color:var(--text-2)}
+.out:empty::before{content:attr(data-empty);color:#444}
+.out.flash{animation:flash .7s var(--ease)}
+@keyframes flash{from{background:rgba(255,255,255,.1)}to{background:var(--field)}}
+
+.controls{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:16px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn{cursor:pointer;padding:10px 16px;border-radius:11px;border:1px solid var(--border-2);background:transparent;font-size:13px;font-weight:500;transition:background .25s,border-color .25s,transform .2s var(--ease)}
+.btn:hover{background:var(--surface-2);transform:translateY(-1px)}
+.btn:active{transform:scale(.98)}
+.btn.solid{background:#f3f3f3;color:#080808;border-color:#f3f3f3}
+.btn.solid:hover{background:#fff}
+
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--text-2);font-size:13px;user-select:none}
+.switch input{display:none}
+.switch .track{width:40px;height:22px;border-radius:999px;background:#161616;border:1px solid var(--border-2);position:relative;transition:background .3s}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#7a7a7a;transition:transform .4s var(--ease),background .3s}
+.switch input:checked + .track{background:#2a2a2a}
+.switch input:checked + .track::after{transform:translateX(18px);background:#f3f3f3}
+
+.note{margin-top:16px;color:var(--muted);font-size:13px}
+
+/* key */
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:14px}
+.search{flex:1;min-width:220px;padding:11px 14px;border-radius:12px;border:1px solid var(--border);background:var(--field);outline:none;transition:border-color .3s}
+.search:focus{border-color:var(--border-2)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{cursor:pointer;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:none;color:var(--muted);font-size:12px;transition:all .25s}
+.chip:hover{color:var(--text)}
+.chip.on{background:var(--surface-2);color:#fff;border-color:var(--border-2)}
+.count{font-size:12px;color:var(--muted);margin:4px 2px 12px}
+.tbl{border-radius:16px;overflow:hidden}
+.scroll{max-height:540px;overflow:auto}
+table{width:100%;border-collapse:collapse}
+th{position:sticky;top:0;background:rgba(12,12,12,.85);backdrop-filter:blur(10px);text-align:left;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--border)}
+td{padding:11px 16px;border-bottom:1px solid var(--border);font-size:14px}
+td.m{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-2)}
+td.k{color:var(--muted);font-size:12px}
+tbody tr{transition:background .2s}
+tbody tr:hover{background:rgba(255,255,255,.035)}
+tbody tr{animation:in .35s var(--ease) both}
+@keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* method */
+.steps{display:grid;gap:12px}
+.step{display:grid;grid-template-columns:40px 1fr;gap:16px;padding:20px 22px;align-items:start}
+.num{width:32px;height:32px;border-radius:10px;border:1px solid var(--border-2);display:grid;place-items:center;font:600 12px ui-monospace,monospace;color:#fff}
+.step h3{margin:4px 0 6px;font-size:15px;font-weight:600}
+.step p{margin:0;color:var(--muted);font-size:14px;line-height:1.65}
+.demo{margin-top:16px;padding:22px}
+.demo .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.cells{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+@media(max-width:640px){.cells{grid-template-columns:1fr 1fr}}
+.cell{padding:14px;border-radius:12px;background:var(--field);border:1px solid var(--border);min-height:74px}
+.cell small{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.cell div{font:14.5px ui-monospace,monospace;word-break:break-all;animation:flash .7s var(--ease)}
+
+footer{margin-top:48px;text-align:center;font-size:12px;color:#4d4d4d;letter-spacing:.12em}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;padding:10px 16px;font-size:13px;border-radius:12px;transition:all .4s var(--ease);z-index:9}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><span class="dot"></span>Cipher</div>
+    <nav class="seg glass" id="seg">
+      <div class="pill" id="pill"></div>
+      <button class="on" data-tab="enc"><span>Encode</span></button>
+      <button data-tab="dec"><span>Decode</span></button>
+      <button data-tab="key"><span>Key</span></button>
+      <button data-tab="method"><span>Method</span></button>
+    </nav>
+  </header>
+
+  <!-- ENCODE -->
+  <section class="view on" id="enc">
+    <div class="intro">
+      <h1>Encode</h1>
+      <p>Turn spoken words into written ones. The same word always produces the same result.</p>
+    </div>
+    <div class="glass panel">
+      <div class="pair">
+        <div>
+          <div class="head">Spoken <b id="encCount">0 words</b></div>
+          <textarea id="encIn" placeholder="Type a sentence" spellcheck="false"></textarea>
+        </div>
+        <div>
+          <div class="head">Written</div>
+          <div id="encOut" class="out" data-empty="Output appears here"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <label class="switch"><input type="checkbox" id="rev" checked><span class="track"></span>Reverse word order</label>
+        <div class="acts">
+          <button class="btn" id="encClear">Clear</button>
+          <button class="btn" id="encSwap">Send to decode</button>
+          <button class="btn solid" id="encCopy">Copy</button>
+        </div>
+      </div>
+      <p class="note">Output is lowercase. Punctuation stays where it was. Words in the Key use their fixed forms.</p>
+    </div>
+  </section>
+
+  <!-- DECODE -->
+  <section class="view" id="dec">
+    <div class="intro">
+      <h1>Decode</h1>
+      <p>Paste written text to recover the spoken sentence. Match the word order setting to the one used when it was encoded.</p>
+    </div>
+    <div class="glass panel">
+      <div class="pair">
+        <div>
+          <div class="head">Written <b id="decCount">0 words</b></div>
+          <textarea id="decIn" placeholder="Paste written text" spellcheck="false"></textarea>
+        </div>
+        <div>
+          <div class="head">Spoken</div>
+          <div id="decOut" class="out" data-empty="Output appears here"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <label class="switch"><input type="checkbox" id="rev2" checked><span class="track"></span>Reverse word order</label>
+        <div class="acts">
+          <button class="btn" id="decClear">Clear</button>
+          <button class="btn" id="decSwap">Send to encode</button>
+          <button class="btn solid" id="decCopy">Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KEY -->
+  <section class="view" id="key">
+    <div class="intro">
+      <h1>Key</h1>
+      <p>Fixed forms for common, everyday, and slang words. Other words are built by the method and stay consistent too.</p>
+    </div>
+    <div class="glass panel">
+      <div class="toolbar">
+        <input class="search" id="keySearch" placeholder="Search spoken or written" spellcheck="false">
+        <div class="chips" id="chips">
+          <button class="chip on" data-cat="all">All</button>
+          <button class="chip" data-cat="core">Core</button>
+          <button class="chip" data-cat="common">Common</button>
+          <button class="chip" data-cat="slang">Slang</button>
+        </div>
+      </div>
+      <div class="count" id="keyCount"></div>
+      <div class="tbl glass">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Spoken</th><th>Written</th><th>Decodes to</th><th>Set</th></tr></thead>
+            <tbody id="keyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- METHOD -->
+  <section class="view" id="method">
+    <div class="intro">
+      <h1>Method</h1>
+      <p>Each written word is built in two steps. Decoding reverses them.</p>
+    </div>
+    <div class="steps">
+      <div class="glass step">
+        <div class="num">1</div>
+        <div>
+          <h3>Place fillers between the letters</h3>
+          <p>Write the spoken word with one filler letter between each pair of letters. Fillers come from the opposite sound class of the letter before them, which keeps the result easy to say.</p>
+        </div>
+      </div>
+      <div class="glass step">
+        <div class="num">2</div>
+        <div>
+          <h3>Reverse the string</h3>
+          <p>Reverse the result of step one. That is the written word. Built this way, the real letters land in the 1st, 3rd, 5th positions once the word is reversed back.</p>
+        </div>
+      </div>
+      <div class="glass step">
+        <div class="num">3</div>
+        <div>
+          <h3>Decode by reversing and reading every other letter</h3>
+          <p>Reverse the written word, then take the 1st, 3rd, 5th letters. They spell the spoken word in order.</p>
+        </div>
+      </div>
+      <div class="glass step">
+        <div class="num">4</div>
+        <div>
+          <h3>Keep sentences consistent</h3>
+          <p>Each word is encoded on its own, so a word always gives the same result. With word order reversed, the written words appear in reverse order, so "I like cats" becomes the written form of "cats", then "like", then "I".</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass demo">
+      <div class="label">Try a word</div>
+      <input class="search" id="demoIn" placeholder="Type one word" spellcheck="false" style="width:100%">
+      <div class="cells" id="demoRow"></div>
+    </div>
+  </section>
+
+  <footer>CIPHER</footer>
+</div>
+
+<div class="toast glass" id="toast"></div>
+
+<script>
+/* ---------- fixed key ---------- */
+const CORE = {
+  the:"ekhet", a:"la", an:"naa", and:"danaa", are:"earoa", at:"tea", be:"herb", but:"thumb",
+  by:"yab", can:"naaac", do:"old", for:"raoaf", from:"maoaraf", he:"yeah", in:"anti", is:"ski",
+  it:"tri", just:"tasauaj", me:"team", my:"yam", no:"own", not:"thorn", of:"fro", on:"into",
+  or:"trio", so:"does", some:"eamaoas", that:"strawhat", they:"yaeahat", this:"saiahat", to:"out",
+  we:"meow", what:"taaahaw", when:"naeahaw", who:"oahaw", will:"lalaiaw", with:"hataiaw",
+  was:"saaaw", have:"eavaaah", there:"earaeahat", you:"uboay", she:"ethos", all:"lalaa"
+};
+const COMMON = {
+  tea:"agent", ah:"whoa", as:"sea", bob:"absorb", deep:"pretend", did:"dried", dig:"grind", dry:"hybrid",
+  due:"refund", eat:"trade", end:"dance", era:"agree", feet:"thereof", fit:"thief", gift:"staffing",
+  girl:"lurking", got:"strong", guy:"young", had:"death", has:"smash", hat:"teach", hi:"ish", hit:"thigh",
+  hot:"tooth", hurt:"through", kid:"drink", led:"dwell", lie:"serial", lies:"special", lot:"troll",
+  map:"psalm", met:"stream", nice:"reaction", note:"meltdown", ran:"unfair", sad:"deals", salt:"italians",
+  say:"years", sea:"areas", seat:"travels", see:"levels", self:"filters", send:"dancers", sent:"tunnels",
+  set:"trees", shut:"touches", sing:"agencies", site:"entries", sit:"tries", sub:"blues", sun:"inputs",
+  ten:"invest", tie:"exist", tip:"print", tool:"lookout", yes:"seedy", yet:"teeny", fun:"engulf",
+  gun:"unsung", sat:"teams", saw:"wears", sir:"ruins", sees:"seekers", ha:"ash", ya:"any", re:"ear",
+  ate:"extra", ears:"surface", seal:"leaders", hub:"brush", mob:"bloom", tab:"blast", tag:"grant",
+  tap:"plant", lap:"pearl", dash:"husband", sons:"sensors", tops:"support", gig:"going", am:"mia"
+};
+const SLANG = {
+  gas:"slang", go:"omg", pog:"group", smh:"homes", tbh:"habit", omg:"gumbo", nvm:"movin", sus:"souls",
+  yeet:"thereby", lit:"trial", ii:"iii"
+};
+const TABLE = Object.assign({}, SLANG, COMMON, CORE);
+function category(w){ return CORE[w] ? "core" : COMMON[w] ? "common" : "slang"; }
+
+/* ---------- core ---------- */
+const CONS = "bdfgklmnprstvz", VOW = "aeiou";
+const isVowel = c => VOW.indexOf(c) >= 0;
+function fnv(s){ let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
+function prng(seed){ let s = (seed >>> 0) || 1; return () => { s ^= (s << 13) >>> 0; s ^= s >>> 17; s ^= (s << 5) >>> 0; s >>>= 0; return s / 4294967296; }; }
+function build(w, attempt){
+  const r = prng(fnv(w + "#" + attempt));
+  let R = w[0];
+  for (let i = 1; i < w.length; i++){
+    const pool = isVowel(w[i-1]) ? CONS : VOW;
+    R += pool[Math.floor(r() * pool.length)] + w[i];
+  }
+  return R;
+}
+function penalty(s){
+  let p = 0;
+  for (let i = 1; i < s.length; i++){
+    if (isVowel(s[i]) === isVowel(s[i-1])) p++;
+    if (s[i] === s[i-1]) p += 2;
+  }
+  return p;
+}
+function encodeDetail(w){
+  w = w.toLowerCase();
+  if (TABLE[w]) { const written = TABLE[w]; return { fixed:true, R: written.split("").reverse().join(""), written }; }
+  if (w.length === 1) return { fixed:false, R:w, written:w };
+  let best = null;
+  for (let a = 0; a < 8; a++){
+    const R = build(w, a);
+    const written = R.split("").reverse().join("");
+    const p = penalty(written);
+    if (!best || p < best.p) best = { R, written, p };
+  }
+  return { fixed:false, R:best.R, written:best.written };
+}
+const encodeWord = w => encodeDetail(w).written;
+function decodeWord(c){
+  const R = c.toLowerCase().split("").reverse().join("");
+  let out = ""; for (let i = 0; i < R.length; i += 2) out += R[i];
+  return out;
+}
+function transform(text, fn, reverse){
+  const toks = text.split(/(\s+)/);
+  const slots = [];
+  for (let i = 0; i < toks.length; i += 2) if (toks[i] !== "") slots.push(i);
+  const vals = slots.map(i => toks[i]);
+  if (reverse) vals.reverse();
+  slots.forEach((i, k) => { toks[i] = vals[k].replace(/[A-Za-z]+/g, m => fn(m)); });
+  return toks.join("");
+}
+const wordCount = t => (t.trim().match(/\S+/g) || []).length;
+const plural = n => n + (n === 1 ? " word" : " words");
+
+/* ---------- ui ---------- */
+const $ = id => document.getElementById(id);
+const toastEl = $("toast");
+function toast(msg){ toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => toastEl.classList.remove("show"), 1400); }
+function flash(el){ el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+
+const seg = $("seg"), pill = $("pill");
+function movePill(btn){
+  pill.style.width = btn.offsetWidth + "px";
+  pill.style.transform = `translateX(${btn.offsetLeft - 4}px)`;
+}
+function showTab(name){
+  document.querySelectorAll(".seg button").forEach(b => {
+    const on = b.dataset.tab === name;
+    b.classList.toggle("on", on);
+    if (on) movePill(b);
+  });
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === name));
+  if (name === "key") renderKey();
+  if (name === "method") renderDemo();
+}
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+window.addEventListener("resize", () => movePill(document.querySelector(".seg button.on")));
+
+function runEncode(){
+  const text = $("encIn").value;
+  const out = $("encOut");
+  out.textContent = transform(text, m => encodeWord(m.toLowerCase()), $("rev").checked);
+  $("encCount").textContent = plural(wordCount(text));
+  flash(out);
+}
+function runDecode(){
+  const text = $("decIn").value;
+  const out = $("decOut");
+  out.textContent = transform(text, m => decodeWord(m), $("rev2").checked);
+  $("decCount").textContent = plural(wordCount(text));
+  flash(out);
+}
+$("encIn").addEventListener("input", runEncode);
+$("rev").addEventListener("change", runEncode);
+$("decIn").addEventListener("input", runDecode);
+$("rev2").addEventListener("change", runDecode);
+
+$("encClear").onclick = () => { $("encIn").value = ""; runEncode(); };
+$("decClear").onclick = () => { $("decIn").value = ""; runDecode(); };
+$("encSwap").onclick = () => { $("decIn").value = $("encOut").textContent; $("rev2").checked = $("rev").checked; runDecode(); showTab("dec"); toast("Sent to decode"); };
+$("decSwap").onclick = () => { $("encIn").value = $("decOut").textContent; $("rev").checked = $("rev2").checked; runEncode(); showTab("enc"); toast("Sent to encode"); };
+
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); }
+  catch(e){ const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast("Copied");
+}
+$("encCopy").onclick = () => copyText($("encOut").textContent);
+$("decCopy").onclick = () => copyText($("decOut").textContent);
+
+/* key */
+let activeCat = "all";
+function renderKey(){
+  const q = $("keySearch").value.trim().toLowerCase();
+  const keys = Object.keys(TABLE).sort();
+  const list = keys.filter(w => {
+    if (activeCat !== "all" && category(w) !== activeCat) return false;
+    if (!q) return true;
+    return w.includes(q) || TABLE[w].includes(q);
+  });
+  $("keyCount").textContent = `${list.length} of ${keys.length} entries`;
+  $("keyBody").innerHTML = list.length
+    ? list.map((w, i) => `<tr style="animation-delay:${Math.min(i * 12, 300)}ms"><td>${w}</td><td class="m">${TABLE[w]}</td><td class="m">${decodeWord(TABLE[w])}</td><td class="k">${category(w)}</td></tr>`).join("")
+    : `<tr><td colspan="4" style="color:var(--muted);padding:24px 16px">No matches</td></tr>`;
+}
+$("keySearch").addEventListener("input", renderKey);
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+  document.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c));
+  activeCat = c.dataset.cat; renderKey();
+}));
+
+/* method demo */
+function renderDemo(){
+  const w = ($("demoIn").value || "").trim().toLowerCase().replace(/[^a-z]/g, "");
+  const row = $("demoRow");
+  const cell = (label, val) => `<div class="cell"><small>${label}</small><div>${val}</div></div>`;
+  if (!w){
+    row.innerHTML = cell("Spoken", "&nbsp;") + cell("Interleaved", "&nbsp;") + cell("Written", "&nbsp;") + cell("Decoded", "&nbsp;");
+    return;
+  }
+  const d = encodeDetail(w);
+  row.innerHTML = cell("Spoken", w) + cell("Interleaved", d.fixed ? "fixed key" : d.R) + cell("Written", d.written) + cell("Decoded", decodeWord(d.written));
+}
+$("demoIn").addEventListener("input", renderDemo);
+
+/* init */
+runEncode(); runDecode(); renderKey();
+requestAnimationFrame(() => movePill(document.querySelector(".seg button.on")));
+</script>
+</body>
+</html>
